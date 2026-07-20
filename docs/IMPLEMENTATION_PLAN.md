@@ -74,13 +74,36 @@ expense-tracker/
 - **Gate:** ✅ migration applied cleanly to Supabase; money tests pass;
   `db:check` confirms 12 tables + both custom constraints present.
 
-### Phase 2 — Google auth & CUET restriction
+### Phase 2 — Google auth & CUET restriction ✅ (code complete; needs real Google credentials)
 
-- [ ] Auth.js Google provider + Prisma adapter
-- [ ] `signIn` validation: email_verified, CUET regex, `hd`, sub→googleSub
-- [ ] `EmailDomainPolicy` unit-tested (valid/invalid/unverified)
-- [ ] `/login` page + gating; unauthorized state
-- **Gate:** unit tests for CUET accept/reject/unverified pass.
+- [x] Auth.js v5 Google provider (`type: "oidc"`) + Prisma adapter (`src/lib/auth.ts`)
+- [x] `signIn` validation: email_verified, CUET regex, `hd`, sub→googleSub —
+      wired to the already-tested `evaluateCuetSignIn` (`src/lib/cuet.ts`)
+- [x] `EmailDomainPolicy` unit-tested (9 tests: valid/invalid/unverified/hd/
+      reconfigured regex)
+- [x] `/login` page with reason-specific error messages; `/dashboard` protected
+      shell (redirects to `/login` when unauthenticated)
+- **Gate:** ✅ typecheck/lint/57 tests pass; `next build` succeeds; **verified
+  live in a real browser**: `/dashboard` → 307 redirect to `/login` when signed
+  out; clicking "Sign in with Google" submits the server action (POST 303) and
+  correctly reaches Google's real OIDC authorization endpoint with the
+  configured `client_id` (rejected only because dev creds are placeholders —
+  proof the wiring is genuine, not mocked).
+- **Blocked on user input:** real `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`
+  (see `.env.example` for the 5-step Google Cloud Console guide) to test an
+  actual CUET account end-to-end.
+
+**Design decisions verified against installed source** (not assumed — see
+`node_modules/@auth/core/src/lib/actions/callback/{index,handle-login}.ts`):
+  - The `signIn` callback receives Google's **raw** OIDC claims (`sub`,
+    `email`, `email_verified`, `hd`), matching `GoogleProfileLike`.
+  - `signIn` runs **before** any DB write; returning `false`/a string means
+    `createUser`/`linkAccount` never execute — a rejected sign-in leaves zero
+    trace in the database.
+  - The provider's `profile()` return value flows through to
+    `PrismaAdapter.createUser`, so a custom `profile()` that adds
+    `googleSub: profile.sub` guarantees the identity key is set at row
+    creation — no window where a user exists without it.
 
 ### Phase 3 — Project creation & membership authorization
 
@@ -186,7 +209,7 @@ expense-tracker/
 | 18  | Duplicate settlement (idempotency)     | integration | 8     |
 | 19  | Concurrent settlement (no double)      | integration | 8     |
 | 20  | Project deletion authorization         | integration | 9     |
-| 21  | Realtime update across two sessions    | e2e         | 7     |
+| 21  | Realtime update across two sessions    | integration + manual | 7 |
 
 ## Definition of Done → verification map
 
@@ -221,3 +244,11 @@ test(s) above plus manual E2E confirmation in Phase 13.
   covered by integration tests + manual verification instead. Gate green: 57
   tests, typecheck, lint. Local `.env` holds the real (dev) Supabase credentials
   and is git-ignored.
+- 2026-07-21: **Phase 2 complete (code).** Wired Auth.js v5 to Google OIDC with
+  the CUET sign-in policy (`src/lib/auth.ts`), a custom `profile()` mapping that
+  sets `googleSub` at row-creation time, `/login` (reason-specific error
+  messages) and a protected `/dashboard` shell. Verified live in a real browser:
+  unauthenticated `/dashboard` redirects (307) to `/login`; the sign-in button
+  reaches Google's real authorization endpoint (rejected only due to placeholder
+  dev credentials). Gate green: typecheck, lint, 57 tests, `next build`. Waiting
+  on the user to create a real Google OAuth client to test an actual CUET login.
