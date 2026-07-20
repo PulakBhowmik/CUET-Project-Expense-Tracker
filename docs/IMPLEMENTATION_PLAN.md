@@ -105,13 +105,29 @@ expense-tracker/
     `googleSub: profile.sub` guarantees the identity key is set at row
     creation — no window where a user exists without it.
 
-### Phase 3 — Project creation & membership authorization
+### Phase 3 — Project creation & membership authorization ✅
 
-- [ ] `project-policy.ts` + `loadContext`; typed errors
-- [ ] project service: create (creator=leader=member atomically)
-- [ ] `/projects/new`, `/dashboard` (created + member projects)
-- [ ] Integration: IDOR (non-member → 404), duplicate membership blocked
-- **Gate:** membership/IDOR integration tests pass.
+- [x] `src/lib/policy/project-policy.ts`: `loadProjectContext` (member-or-404,
+      never leaks project existence), `assertMember`, `assertLeaderPower`,
+      `assertCanInvite`, `assertCanTransferLeadership`
+- [x] `src/lib/services/project.ts`: `createProject` (creator=leader=member,
+      one transaction), `listProjectsForUser`, `getProjectForUser`
+- [x] `/projects/new` (form + Server Action + Zod validation),
+      `/dashboard` (real created/member project lists),
+      `/projects/[projectId]` (membership-gated detail page)
+- [x] Shared `not-found.tsx` — deliberately identical message for "doesn't
+      exist" and "you can't see it" (no existence leak)
+- [x] Integration tests (`tests/integration/project.test.ts`, `tests/factories/`)
+      run against the **real Supabase database**: creator=leader=member
+      invariant, IDOR (non-member → NotFoundError, same as nonexistent id),
+      duplicate membership rejected by the DB, list partitioning, member count
+- **Gate:** ✅ typecheck/lint clean; **64 tests pass** (7 new integration tests,
+  verified zero orphaned rows left in Supabase after the run via
+  `npm run db:check`); `next build` succeeds (7 routes); live-browser check
+  confirms `/projects/new` redirects (307) to `/login` when unauthenticated.
+- **Fixed along the way:** Vitest doesn't auto-load `.env` the way Next.js
+  does — added `import "dotenv/config"` to `vitest.setup.ts` so integration
+  tests can reach the database.
 
 ### Phase 4 — Invitations
 
@@ -252,3 +268,11 @@ test(s) above plus manual E2E confirmation in Phase 13.
   reaches Google's real authorization endpoint (rejected only due to placeholder
   dev credentials). Gate green: typecheck, lint, 57 tests, `next build`. Waiting
   on the user to create a real Google OAuth client to test an actual CUET login.
+- 2026-07-21: **Phase 3 complete.** Project creation + membership authorization:
+  policy layer, service layer, `/projects/new`, real `/dashboard` project
+  lists, `/projects/[projectId]` detail page, shared `not-found.tsx`. First
+  real integration tests against the live Supabase DB (7 tests: creator/leader/
+  member invariant, IDOR protection, duplicate-membership rejection, list
+  partitioning) — all passing with verified zero test-data leftover. Gate
+  green: typecheck, lint, **64 tests**, `next build` (7 routes), live-browser
+  redirect check. GitHub push still pending a repo URL from the user.
