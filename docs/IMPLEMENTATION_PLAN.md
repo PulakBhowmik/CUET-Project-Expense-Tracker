@@ -153,14 +153,24 @@ expense-tracker/
   invite (and every real login in production) would have been rejected. Fixed to
   single backslashes in `.env`/`.env.example` with a warning comment.
 
-### Phase 5 — Expense CRUD
+### Phase 5 — Expense CRUD ✅
 
-- [ ] expense service + Zod DTOs (amount>0, immutable payer/project)
-- [ ] Server Actions: create/edit/delete (owner+unsettled policy)
-- [ ] Expense table + add/edit/delete UI (owner-only controls)
-- [ ] Integration: member creates; owner edits; other blocked; leader blocked;
-      settled locked
-- **Gate:** expense authz integration tests pass.
+- [x] Expense service (`src/lib/services/expense.ts`) + Zod DTOs (amount>0 via
+      `takaToPaisa`, payer taken from session not client, immutable payer/project)
+- [x] `assertCanModifyExpense` policy (payer + unsettled; settled = locked for
+      everyone including leader/creator)
+- [x] Server Actions create/edit/delete; `updateMany`/`deleteMany` guard against
+      a settlement racing between read and write
+- [x] Balances service (`src/lib/services/balances.ts`) wiring calc to real data:
+      authoritative lifetime total + current-cycle equal-split from the DB
+- [x] UI: add-expense form, expense table (owner-only edit/delete via dialogs),
+      balances panel ("You owe/should receive/settled", your share, totals)
+- [x] Integration tests (`tests/integration/expense.test.ts`, 9 tests): member
+      creates (#8), owner edits (#9), other member blocked (#10), leader blocked
+      (#11), delete authz, settled-lock, the ৳100/4 balance example end-to-end,
+      lifetime-vs-cycle totals
+- **Gate:** ✅ typecheck/lint clean; **84 tests pass**; zero orphaned rows;
+  `next build` succeeds (8 routes).
 
 ### Phase 6 — Calculation service ✅ (done early — pure logic, no DB)
 

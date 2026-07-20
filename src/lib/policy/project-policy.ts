@@ -5,8 +5,8 @@
  * claim directly.
  */
 import { prisma } from "@/lib/db";
-import { NotFoundError, AuthorizationError } from "@/lib/errors";
-import type { Project, ProjectMember } from "@/generated/prisma/client";
+import { NotFoundError, AuthorizationError, ConflictError } from "@/lib/errors";
+import type { Project, ProjectMember, Expense } from "@/generated/prisma/client";
 
 export interface ProjectContext {
   userId: string;
@@ -74,4 +74,28 @@ export function assertCanTransferLeadership(ctx: ProjectContext): void {
   throw new AuthorizationError(
     "Only the leader or creator can transfer leadership.",
   );
+}
+
+/** True only for the payer of an UNSETTLED expense. */
+export function canModifyExpense(ctx: ProjectContext, expense: Expense): boolean {
+  return expense.payerUserId === ctx.userId && expense.settlementId === null;
+}
+
+/**
+ * Guards edit/delete of an expense. Settled expenses are locked for EVERYONE
+ * (including leader/creator); an unsettled expense can only be touched by its
+ * own payer. See docs/AUTHORIZATION.md note 1.
+ */
+export function assertCanModifyExpense(
+  ctx: ProjectContext,
+  expense: Expense,
+): void {
+  if (expense.settlementId !== null) {
+    throw new ConflictError(
+      "This expense has been settled and can no longer be changed.",
+    );
+  }
+  if (expense.payerUserId !== ctx.userId) {
+    throw new AuthorizationError("You can only change your own expenses.");
+  }
 }
