@@ -129,14 +129,29 @@ expense-tracker/
   does — added `import "dotenv/config"` to `vitest.setup.ts` so integration
   tests can reach the database.
 
-### Phase 4 — Invitations
+### Phase 4 — Invitations ✅
 
-- [ ] TokenHasher port + adapter; invitation service (create/accept/revoke)
-- [ ] Partial-unique duplicate-pending enforcement; expiry
-- [ ] `/invitations/[token]` accept flow (email-match gated)
-- [ ] Integration: mismatch reject, duplicate invite, invite existing member,
-      expired token, accept-by-wrong-user
-- **Gate:** invitation integration tests pass.
+- [x] `TokenHasher` port + HMAC-SHA-256 adapter (`src/lib/token-hasher.ts`);
+      only the hash is stored, plaintext token shown once
+- [x] `RateLimiter` port + in-memory adapter (`src/lib/rate-limit.ts`) for
+      invite create/accept
+- [x] Invitation service (`src/lib/services/invitation.ts`): create, accept,
+      list-pending (per project), list-for-user (own email only), preview
+- [x] Duplicate-pending enforced by the partial-unique index (P2002 → friendly
+      ConflictError); TTL expiry; audit log entries
+- [x] `/invitations/[token]` page (unauth → sign in; wrong account → blocked;
+      matching account → accept), shareable-link UI (no email service)
+- [x] Dashboard "pending invitations" section; project page invite form
+      (leader/creator only)
+- [x] Integration tests (`tests/integration/invitation.test.ts`, 12 tests):
+      email mismatch rejected (#5), duplicate invite blocked (#6), invite
+      existing member, non-CUET rejected, member-can't-invite, accept flow,
+      double-accept, invalid token, per-project + per-user scoping
+- **Gate:** ✅ typecheck/lint clean; **75 tests pass**; zero orphaned rows.
+- **Bug caught by these tests:** the `.env` CUET regex used double backslashes
+  (`\\.`), which dotenv reads literally — the pattern matched nothing, so every
+  invite (and every real login in production) would have been rejected. Fixed to
+  single backslashes in `.env`/`.env.example` with a warning comment.
 
 ### Phase 5 — Expense CRUD
 
@@ -276,3 +291,11 @@ test(s) above plus manual E2E confirmation in Phase 13.
   partitioning) — all passing with verified zero test-data leftover. Gate
   green: typecheck, lint, **64 tests**, `next build` (7 routes), live-browser
   redirect check. GitHub push still pending a repo URL from the user.
+- 2026-07-21: **Phase 4 complete.** Invitations via shareable link (user chose
+  this over an email service). Token hashing (store hash only), rate limiting,
+  full accept flow with the critical email-match gate, `/invitations/[token]`
+  page. 12 integration tests (75 total). Caught & fixed a real `.env` regex
+  escaping bug that would have blocked all logins/invites in production. User
+  provided GitHub repo: PulakBhowmik/CUET-Project-Expense-Tracker — pushing now.
+  User clarified: keep automated tests, but they'll do manual feature-testing
+  themselves at the end (I don't need to click through every feature live).

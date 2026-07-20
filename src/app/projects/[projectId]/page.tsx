@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProjectForUser } from "@/lib/services/project";
 import { NotFoundError } from "@/lib/errors";
+import { InviteMemberForm } from "@/components/projects/invite-member-form";
+import { PendingInvitationsList } from "@/components/projects/pending-invitations-list";
 
 // Expenses, balances, realtime sync, and settlement land in later phases.
 // This page proves membership-gated access: non-members and nonexistent
@@ -62,6 +64,17 @@ export default async function ProjectPage({
           ))}
         </ul>
       </section>
+
+      {(isLeader || isCreator) && (
+        <section className="space-y-4 rounded-lg border p-4">
+          <h2 className="text-lg font-medium">Invite a member</h2>
+          <InviteMemberForm projectId={project.id} />
+          <PendingInvitationsList
+            actorUserId={session.user.id}
+            projectId={project.id}
+          />
+        </section>
+      )}
 
       <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
         Expenses, balances, and settlement history arrive in upcoming phases.

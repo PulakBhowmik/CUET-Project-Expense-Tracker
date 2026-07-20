@@ -3,15 +3,18 @@ import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { listProjectsForUser, type ProjectSummary } from "@/lib/services/project";
+import { listInvitationsForUser } from "@/lib/services/invitation";
 
-// Pending invitations arrive in Phase 4.
 export default async function DashboardPage() {
   const session = await auth();
-  if (!session?.user?.id) {
+  if (!session?.user?.id || !session.user.email) {
     redirect("/login");
   }
 
-  const projects = await listProjectsForUser(session.user.id);
+  const [projects, invitations] = await Promise.all([
+    listProjectsForUser(session.user.id),
+    listInvitationsForUser(session.user.email),
+  ]);
   const created = projects.filter((p) => p.isCreator);
   const memberOnly = projects.filter((p) => !p.isCreator);
 
@@ -40,6 +43,27 @@ export default async function DashboardPage() {
           </form>
         </div>
       </div>
+
+      {invitations.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Pending invitations</h2>
+          <ul className="space-y-2">
+            {invitations.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex items-center justify-between rounded-lg border p-4 text-sm"
+              >
+                <span>
+                  You&apos;ve been invited to <strong>{inv.projectName}</strong>
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  Ask the leader for your invite link
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <ProjectSection
         title="Your projects"
