@@ -1,0 +1,261 @@
+// CUET Expense Splitter — Prisma schema.
+// See docs/DATABASE.md for the design rationale.
+// Prisma 7: the `prisma-client` generator emits a TS client into `output`,
+// and the runtime connection URL is supplied via a driver adapter (see
+// src/lib/db.ts). The CLI reads DATABASE_URL via prisma.config.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ProjectMemberStatus {
+  ACTIVE
+  // Future: REMOVED, LEFT — see docs/AUTHORIZATION.md §6.
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETE
+}
+
+enum AuditAction {
+  PROJECT_CREATED
+  PROJECT_RENAMED
+  PROJECT_DELETED
+  LEADERSHIP_TRANSFERRED
+  INVITATION_CREATED
+  INVITATION_ACCEPTED
+  INVITATION_REVOKED
+  EXPENSE_CREATED
+  EXPENSE_UPDATED
+  EXPENSE_DELETED
+  SETTLEMENT_COMPLETED
+}
+
+// ---------------------------------------------------------------------------
+// Identity (Google `sub` is the permanent key; email is a unique secondary)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  googleSub     String    @unique
+  email         String    @unique // normalized lowercase
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  memberships        ProjectMember[]
+  createdProjects    Project[]           @relation("ProjectCreator")
+  expenses           Expense[]
+  auditLogs          AuditLog[]
+  settlementBalances SettlementBalance[]
+
+  @@index([email])
+}
+
+// ---- Auth.js adapter models ----
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Projects & membership
+// ---------------------------------------------------------------------------
+
+model Project {
+  id             String   @id @default(cuid())
+  name           String
+  creatorUserId  String // immutable creator
+  leaderMemberId String?  @unique // current leader (a ProjectMember)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  creator      User                @relation("ProjectCreator", fields: [creatorUserId], references: [id])
+  leaderMember ProjectMember?      @relation("ProjectLeader", fields: [leaderMemberId], references: [id])
+  members      ProjectMember[]     @relation("ProjectMembers")
+  invitations  ProjectInvitation[]
+  expenses     Expense[]
+  settlements  Settlement[]
+
+  @@index([creatorUserId])
+}
+
+model ProjectMember {
+  id        String              @id @default(cuid())
+  projectId String
+  userId    String
+  status    ProjectMemberStatus @default(ACTIVE)
+  joinedAt  DateTime            @default(now())
+
+  project        Project  @relation("ProjectMembers", fields: [projectId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id])
+  leadingProject Project? @relation("ProjectLeader")
+
+  // One membership row per (project, user). When REMOVED/LEFT are added,
+  // switch to a partial unique index WHERE status = 'ACTIVE'.
+  @@unique([projectId, userId], name: "uniq_project_user")
+  @@index([userId])
+  @@index([projectId, status])
+}
+
+model ProjectInvitation {
+  id               String           @id @default(cuid())
+  projectId        String
+  email            String // normalized lowercase, CUET-validated
+  tokenHash        String           @unique // hash only, never plaintext
+  status           InvitationStatus @default(PENDING)
+  invitedByUserId  String
+  expiresAt        DateTime
+  createdAt        DateTime         @default(now())
+  acceptedAt       DateTime?
+  acceptedByUserId String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // A partial unique index (WHERE status='PENDING') is added via raw SQL in the
+  // migration to prevent duplicate pending invitations per (project, email).
+  @@index([projectId, status])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
+
+model Expense {
+  id           String   @id @default(cuid())
+  projectId    String
+  payerUserId  String // immutable after creation
+  title        String
+  description  String?
+  amountPaisa  BigInt // > 0 (CHECK constraint added via raw SQL migration)
+  expenseDate  DateTime @db.Date
+  settlementId String? // null = unsettled / current cycle
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  payer      User        @relation(fields: [payerUserId], references: [id])
+  settlement Settlement? @relation(fields: [settlementId], references: [id])
+
+  @@index([projectId, settlementId]) // unsettled-cycle & lifetime queries
+  @@index([projectId, payerUserId])
+  @@index([settlementId])
+}
+
+// ---------------------------------------------------------------------------
+// Settlement (immutable) + per-member snapshot
+// ---------------------------------------------------------------------------
+
+model Settlement {
+  id                String           @id @default(cuid())
+  projectId         String
+  status            SettlementStatus @default(PENDING)
+  idempotencyKey    String
+  cycleTotalPaisa   BigInt
+  activeMemberCount Int
+  equalSharePaisa   BigInt
+  createdByUserId   String
+  createdAt         DateTime         @default(now())
+  completedAt       DateTime?
+
+  project  Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  balances SettlementBalance[]
+  expenses Expense[]
+
+  // Idempotency: the same key cannot create two settlements for a project.
+  @@unique([projectId, idempotencyKey], name: "uniq_project_idempotency")
+  @@index([projectId, createdAt])
+}
+
+model SettlementBalance {
+  id              String @id @default(cuid())
+  settlementId    String
+  userId          String
+  paidPaisa       BigInt
+  sharePaisa      BigInt
+  netBalancePaisa BigInt // paid - share (may be negative)
+
+  settlement Settlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([settlementId, userId])
+  @@index([settlementId])
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  projectId   String?
+  actorUserId String?
+  action      AuditAction
+  targetType  String?
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([projectId, createdAt])
+  @@index([actorUserId])
+}

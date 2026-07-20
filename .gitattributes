@@ -1,0 +1,11 @@
+# Normalize line endings to LF in the repository (the app builds on Linux/Vercel).
+* text=auto eol=lf
+
+# Treat these as binary (never convert).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

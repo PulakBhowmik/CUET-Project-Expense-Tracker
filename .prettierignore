@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+build
+coverage
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+prisma/migrations
+src/generated
+next-env.d.ts
