@@ -62,14 +62,17 @@ expense-tracker/
 - [x] `src/lib/env.ts` Zod env validation (fail fast) + unit tests
 - **Gate:** ✅ typecheck clean, lint clean, 7 tests pass, `next build` succeeds.
 
-### Phase 1 — Database schema & migrations (code done; migration pending DB)
+### Phase 1 — Database schema & migrations ✅
 
-- [x] `prisma/schema.prisma` per `docs/DATABASE.md` (validates; offline SQL diff OK)
-- [ ] Raw SQL migration: amount CHECK, partial unique pending-invite index
-      (blocked on Supabase connection — apply once DATABASE_URL is set)
+- [x] `prisma/schema.prisma` per `docs/DATABASE.md`
+- [x] Raw SQL migration `20260721000000_init`: 12 tables + amount CHECK +
+      partial unique pending-invite index — **applied to live Supabase DB**
 - [x] `src/lib/money.ts` (paisa parse/format) + unit tests (22 passing)
 - [x] Prisma 7 client singleton (`src/lib/db.ts`) with pg driver adapter
-- **Gate:** money unit tests pass ✅; migrate-applies pending DB.
+- [x] `scripts/check-db.ts` (`npm run db:check`) verifies schema + constraints
+      via the runtime pooler connection
+- **Gate:** ✅ migration applied cleanly to Supabase; money tests pass;
+  `db:check` confirms 12 tables + both custom constraints present.
 
 ### Phase 2 — Google auth & CUET restriction
 
@@ -209,3 +212,12 @@ test(s) above plus manual E2E confirmation in Phase 13.
   `cuet.ts` (sign-in policy) all implemented with **52 unit tests passing**
   (typecheck + lint clean). Remaining Phase 1 step (apply migration) is blocked
   only on the Supabase connection string.
+- 2026-07-21: **Phase 1 fully complete.** User created a free Supabase Postgres
+  project and provided the connection string. Migration `20260721000000_init`
+  applied successfully (12 tables, enums, indexes, FKs, positive-amount CHECK,
+  partial-unique pending-invite index) — verified live via `npm run db:check`.
+  Also removed Playwright/e2e entirely per the simplification decision (no
+  e2e tests existed yet, nothing lost); realtime + cross-browser checks will be
+  covered by integration tests + manual verification instead. Gate green: 57
+  tests, typecheck, lint. Local `.env` holds the real (dev) Supabase credentials
+  and is git-ignored.
