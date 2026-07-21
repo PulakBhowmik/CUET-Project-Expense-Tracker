@@ -122,8 +122,9 @@ INVITATION_TOKEN_SECRET="<second random string>"
 4. Click **Deploy** and wait for the build.
 5. Vercel gives you a URL like `https://cuet-project-expense-tracker.vercel.app`.
    **This is your shareable link.**
-6. **Go back to Google Cloud → Credentials → your OAuth client** and add the
-   production redirect URI (replace with your actual domain):
+6. **Go back to <https://console.cloud.google.com/auth/clients> → your OAuth
+   client** and add the production redirect URI (replace with your actual
+   domain):
 
    ```
    https://YOUR-APP.vercel.app/api/auth/callback/google
@@ -164,10 +165,10 @@ pending-invite unique index present.
 
 ## Part 5 — Going live for real users
 
-While the Google consent screen is in **Testing** mode, only the test users you
-listed can sign in. To open it to all CUET students:
+While the app is in **Testing** mode, only the test users you listed can sign
+in. To open it to all CUET students:
 
-- Google Cloud → **OAuth consent screen** → **Publish app**.
+- Open <https://console.cloud.google.com/auth/audience> → **PUBLISH APP**.
 - For the scopes this app uses (email/profile only), Google does not require a
   verification review.
 
