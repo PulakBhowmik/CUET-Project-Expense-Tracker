@@ -197,14 +197,15 @@ Useful commands:
 
 ## Troubleshooting
 
-| Problem                                  | Fix                                                                                                                                                           |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `redirect_uri_mismatch` on sign-in       | Add the exact callback URL to Google Credentials (Part 3 step 6). It must match including `https://` and no trailing slash.                                   |
-| Signed in with Google but rejected       | Your email doesn't match `CUET_EMAIL_REGEX`, or it isn't verified. That's the CUET restriction working.                                                       |
-| Every login is rejected, even valid ones | Check `CUET_EMAIL_REGEX` uses **single** backslashes.                                                                                                         |
-| `Can't reach database server`            | Check `DATABASE_URL`/`DIRECT_URL`, and that the Supabase project isn't paused (free projects pause after inactivity — open the Supabase dashboard to resume). |
-| Build fails on Vercel with missing env   | Add the missing variable in Project Settings → Environment Variables, then redeploy.                                                                          |
-| Invitation link says invalid             | Links expire after `INVITATION_TTL_HOURS` (default 7 days) and are single-use. Send a fresh one.                                                              |
+| Problem                                                 | Fix                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `redirect_uri_mismatch` on sign-in                      | Add the exact callback URL to Google Credentials (Part 3 step 6). It must match including `https://` and no trailing slash.                                                                                                                                                           |
+| Signed in with Google but rejected                      | Your email doesn't match `CUET_EMAIL_REGEX`, or it isn't verified. That's the CUET restriction working.                                                                                                                                                                               |
+| Every login is rejected, even valid ones                | Check `CUET_EMAIL_REGEX` uses **single** backslashes.                                                                                                                                                                                                                                 |
+| `Can't reach database server`                           | Check `DATABASE_URL`/`DIRECT_URL`, and that the Supabase project isn't paused (free projects pause after inactivity — open the Supabase dashboard to resume).                                                                                                                         |
+| Build fails on Vercel with missing env                  | Add the missing variable in Project Settings → Environment Variables, then redeploy.                                                                                                                                                                                                  |
+| Invitation link says invalid                            | Links expire after `INVITATION_TTL_HOURS` (default 7 days) and are single-use. Send a fresh one.                                                                                                                                                                                      |
+| **"Not found" page right after signing in (local dev)** | The Turbopack cache went stale and stopped registering `/api/auth/*`, so Google's redirect back hits a 404. Stop the dev server, delete the `.next` folder, and run `npm run dev` again. Verify with `curl http://localhost:3000/api/auth/providers` — it must return JSON, not HTML. |
 
 ---
 
