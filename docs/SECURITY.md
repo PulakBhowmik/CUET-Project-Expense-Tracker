@@ -17,29 +17,35 @@
 | Brute force auth / invite spam     | Rate limiting per IP+user                         |
 | Raw DB errors leaking internals    | Central error mapper → safe messages              |
 
-## 2. Authentication (Google OIDC) — server-side validation
+## 2. Authentication (email + one-time code + password)
 
-On the Auth.js `signIn` / `jwt` callback, before accepting a user:
+Sign-up proves the user controls a CUET address before any account exists:
 
-1. Verify ID token **signature** against Google JWKS, **issuer**
-   (`https://accounts.google.com`), **audience** (`GOOGLE_CLIENT_ID`), and
-   **expiry**. (Auth.js/`openid-client` performs this; we assert results.)
-2. Require `email_verified === true`.
-3. Require `email` to match `CUET_EMAIL_REGEX`
-   (default `^u2204[0-9]{3}@student\.cuet\.ac\.bd$`).
-4. If a hosted-domain is configured (`GOOGLE_HOSTED_DOMAIN`) and the `hd` claim
-   is present, require `hd === GOOGLE_HOSTED_DOMAIN`.
-5. Use `sub` as `User.googleSub` (permanent id). Email is secondary/unique.
-6. Reject otherwise — return false from `signIn` → generic "not eligible"
-   screen. The check is enforced regardless of any frontend state.
+1. The address must match `CUET_EMAIL_REGEX` — checked server-side on every
+   path (requesting a code, setting a password, signing in, being invited).
+2. A cryptographically random 6-digit code is emailed. **Only an HMAC-SHA-256
+   hash of the code is stored** (keyed with `INVITATION_TOKEN_SECRET` and bound
+   to the email, so a hash can't be replayed for another address).
+3. Codes expire in 10 minutes, allow at most 5 failed attempts, and are
+   invalidated when a newer code is issued.
+4. Sends are rate-limited: a 30-second cooldown and at most 5 codes per address
+   per 15 minutes.
+5. Only after a code is **consumed** (single-use, guarded by a conditional
+   update so concurrent requests can't both succeed) is a password accepted.
+6. Passwords are hashed with **scrypt** (`N=16384, r=8, p=1`, random 16-byte
+   salt per password) using Node's built-in crypto — no native dependency.
+   Verification is constant-time via `timingSafeEqual`.
 
-Passwords are **never** requested or stored. No Gmail credential handling.
+Sign-in compares the password against the stored hash. Failures are
+indistinguishable: a wrong password and an unknown address both return `null`,
+and a dummy hash is computed for missing users so response timing doesn't
+reveal whether an address is registered.
 
-### Optional OTP (feature flag `FEATURE_APP_OTP`, default off)
+Password reset reuses the same machinery with a distinct `PASSWORD_RESET`
+purpose — a code issued for sign-up cannot be used to reset a password.
 
-If later enabled: send a short-lived numeric code **only** to the already
-verified CUET email, store **only a hash** (with per-code salt), expire in
-minutes, cap attempts, and rate-limit requests. Off in v1.
+Passwords are never logged, never returned by any query used for display, and
+never leave the server.
 
 ## 3. Sessions & cookies
 

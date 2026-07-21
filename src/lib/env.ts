@@ -31,10 +31,10 @@ export const envSchema = z.object({
   AUTH_SECRET: z.string().min(1, "AUTH_SECRET is required"),
   AUTH_URL: z.string().url().optional(),
 
-  // Google OpenID Connect
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
-  GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
-  // Optional Google Workspace hosted-domain claim to enforce when present.
+  // Google OIDC — no longer used for sign-in (the app uses email + password).
+  // Kept optional so existing deployments don't break on these variables.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_HOSTED_DOMAIN: z.string().optional(),
 
   // CUET restrictions (configurable)
@@ -68,6 +68,14 @@ export const envSchema = z.object({
   // Rate limiting knobs
   RATE_LIMIT_INVITES_PER_MIN: z.coerce.number().int().positive().default(10),
   RATE_LIMIT_ACCEPT_PER_MIN: z.coerce.number().int().positive().default(20),
+
+  // Email (SMTP). Optional in development — without it, sign-in codes are
+  // printed to the terminal. REQUIRED in production.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

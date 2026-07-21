@@ -3,74 +3,52 @@
 This walks you from the GitHub repo to a **live link you can share with your
 classmates**. Follow it top to bottom; nothing here needs Docker or a server.
 
-You need three free accounts: **GitHub** (done), **Supabase** (database, done),
-and **Google Cloud** (for "Sign in with Google"), plus **Vercel** (hosting).
+You need: **GitHub** (done), **Supabase** (database, done), an **email sender**
+(to deliver sign-in codes), and **Vercel** (hosting).
 
 ---
 
-## Part 1 — Google sign-in credentials
+## Part 1 — Email delivery (for sign-in codes)
 
-The app only lets CUET students in, and it does that through Google. You need to
-register the app with Google once.
+Signing up sends a 6-digit code to the user's CUET address, so the app needs a
+way to send email.
 
-> Google renamed this area: the old **"OAuth consent screen"** page is now
-> **"Google Auth Platform"**. The direct links below are the quickest route —
-> menu names move around, URLs don't.
+> **Local development needs nothing.** Leave the `SMTP_*` variables unset and
+> the code is printed straight to your terminal, so you can test the whole flow
+> without an email account. You only need this for the deployed site.
 
-**1. Create the project**
+Pick one provider and copy its SMTP settings.
 
-Go to <https://console.cloud.google.com/> → top-left project dropdown →
-**New Project** → name it `CUET Expense Tracker` → **Create**. Wait a few
-seconds, then make sure it's the selected project.
+### Option A — Gmail (free, sends to anyone)
 
-**2. Register the app (the old "consent screen")**
+1. Turn on **2-Step Verification** on your Google account (required for the
+   next step).
+2. Create an **App Password**: <https://myaccount.google.com/apppasswords> —
+   name it `CUET Expense Splitter`. Google shows a 16-character password once.
+3. Use these values:
 
-Open <https://console.cloud.google.com/auth/overview> → click **GET STARTED**,
-then fill the short wizard:
+   ```
+   SMTP_HOST="smtp.gmail.com"
+   SMTP_PORT="587"
+   SMTP_USER="you@gmail.com"
+   SMTP_PASSWORD="the 16-character app password"
+   SMTP_FROM="CUET Expense Splitter <you@gmail.com>"
+   ```
 
-| Wizard step             | What to enter                                                     |
-| ----------------------- | ----------------------------------------------------------------- |
-| **App Information**     | App name `CUET Expense Tracker`; your email as User support email |
-| **Audience**            | **External**                                                      |
-| **Contact Information** | your email address                                                |
-| **Finish**              | tick the policy checkbox → **Create**                             |
+   Gmail allows roughly 500 messages a day — far more than this app needs.
 
-**3. Add test users**
+### Option B — Brevo / Mailjet (free tier)
 
-Open <https://console.cloud.google.com/auth/audience> → under **Test users**
-click **+ Add users** → add every email you'll sign in with → **Save**.
+Sign up, open their **SMTP settings**, and copy the host, port, login and key
+into the same four variables. Both allow sending to any address without owning
+a domain.
 
-> While the app is in **Testing** mode, only these addresses can sign in — even
-> valid CUET ones. Skipping this causes an "app has not completed verification"
-> or `access_denied` error.
+> ⚠️ **Resend won't work** on its free tier: without a verified domain it can
+> only send to your own address, so your classmates would never receive codes.
 
-**4. Create the OAuth client**
-
-Open <https://console.cloud.google.com/auth/clients> → **+ CREATE CLIENT**:
-
-- **Application type**: `Web application`
-- **Name**: `CUET Expense Tracker Web`
-- **Authorized redirect URIs** → **+ ADD URI** → paste exactly:
-  ```
-  http://localhost:3000/api/auth/callback/google
-  ```
-  (You'll add the Vercel URL in Part 3, once you know it.)
-- **CREATE**
-
-**5. Copy the credentials into `.env`**
-
-```
-GOOGLE_CLIENT_ID="....apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="...."
-```
-
-> ⚠️ The **client secret is shown only once**, right after you create the
-> client. Copy it immediately. If you lose it, delete the client and make a new
-> one.
-
-> **Note on the CUET restriction:** Google will happily let any Google account
-> through — the app itself rejects anyone whose verified email doesn't match
-> `CUET_EMAIL_REGEX`. That check runs on the server, so it can't be bypassed.
+**Deliverability note:** codes are delivered to `@student.cuet.ac.bd`, a mail
+server you don't control. Send yourself a test code first, and check the spam
+folder if it doesn't arrive.
 
 ---
 
@@ -109,14 +87,21 @@ INVITATION_TOKEN_SECRET="<second random string>"
    | `DIRECT_URL`              | Supabase **session pooler** URI (port **5432**)     |
    | `AUTH_SECRET`             | your generated secret                               |
    | `INVITATION_TOKEN_SECRET` | your other generated secret                         |
-   | `GOOGLE_CLIENT_ID`        | from Part 1                                         |
-   | `GOOGLE_CLIENT_SECRET`    | from Part 1                                         |
+   | `SMTP_HOST`               | from Part 1 (e.g. `smtp.gmail.com`)                 |
+   | `SMTP_PORT`               | from Part 1 (e.g. `587`)                            |
+   | `SMTP_USER`               | from Part 1                                         |
+   | `SMTP_PASSWORD`           | from Part 1                                         |
+   | `SMTP_FROM`               | e.g. `CUET Expense Splitter <you@gmail.com>`        |
    | `CUET_EMAIL_REGEX`        | `^u2204[0-9]{3}@student\.cuet\.ac\.bd$`             |
 
    > **Important:** in `CUET_EMAIL_REGEX` use **single** backslashes (`\.`).
    > Double backslashes silently break the pattern and block every login.
 
-   Optional: `INVITATION_TTL_HOURS` (default `168`), `GOOGLE_HOSTED_DOMAIN`,
+   > **Email is required in production.** Without the `SMTP_*` values the app
+   > refuses to send codes rather than silently dropping them — so nobody
+   > could sign up.
+
+   Optional: `INVITATION_TTL_HOURS` (default `168`),
    `RATE_LIMIT_INVITES_PER_MIN`, `RATE_LIMIT_ACCEPT_PER_MIN`.
 
 4. Click **Deploy** and wait for the build.
@@ -131,19 +116,12 @@ INVITATION_TOKEN_SECRET="<second random string>"
 
 5. Vercel gives you a URL like `https://cuet-project-expense-tracker.vercel.app`.
    **This is your shareable link.**
-6. **Go back to <https://console.cloud.google.com/auth/clients> → your OAuth
-   client** and add the production redirect URI (replace with your actual
-   domain):
+6. Add `AUTH_URL` in Vercel's environment variables set to your live URL
+   (e.g. `https://YOUR-APP.vercel.app`), then redeploy. This helps Auth.js
+   build correct sign-in redirects behind Vercel's proxy.
 
-   ```
-   https://YOUR-APP.vercel.app/api/auth/callback/google
-   ```
-
-   Save. Without this, sign-in on the live site fails with `redirect_uri_mismatch`.
-
-7. Also add `AUTH_URL` in Vercel's environment variables set to your live URL
-   (e.g. `https://YOUR-APP.vercel.app`) if sign-in redirects misbehave, then
-   redeploy.
+7. Open your live URL, create an account with your CUET email, and confirm the
+   code actually arrives.
 
 ---
 
@@ -172,14 +150,18 @@ pending-invite unique index present.
 
 ---
 
-## Part 5 — Going live for real users
+## Part 5 — Going live for your classmates
 
-While the app is in **Testing** mode, only the test users you listed can sign
-in. To open it to all CUET students:
+There is no approval step — anyone with a CUET address matching
+`CUET_EMAIL_REGEX` can create an account as soon as the site is up.
 
-- Open <https://console.cloud.google.com/auth/audience> → **PUBLISH APP**.
-- For the scopes this app uses (email/profile only), Google does not require a
-  verification review.
+Before sharing the link:
+
+- Send yourself a code on the live site and confirm it arrives (check spam).
+- Make sure `CUET_EMAIL_REGEX` covers the batches you want. The default only
+  allows `u2204###`; widen it if classmates from other batches need access, e.g.
+  `^u220[0-9]{4}@student\.cuet\.ac\.bd$`.
+- Watch your email provider's daily send limit if many people sign up at once.
 
 ---
 
@@ -206,15 +188,15 @@ Useful commands:
 
 ## Troubleshooting
 
-| Problem                                                 | Fix                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `redirect_uri_mismatch` on sign-in                      | Add the exact callback URL to Google Credentials (Part 3 step 6). It must match including `https://` and no trailing slash.                                                                                                                                                           |
-| Signed in with Google but rejected                      | Your email doesn't match `CUET_EMAIL_REGEX`, or it isn't verified. That's the CUET restriction working.                                                                                                                                                                               |
-| Every login is rejected, even valid ones                | Check `CUET_EMAIL_REGEX` uses **single** backslashes.                                                                                                                                                                                                                                 |
-| `Can't reach database server`                           | Check `DATABASE_URL`/`DIRECT_URL`, and that the Supabase project isn't paused (free projects pause after inactivity — open the Supabase dashboard to resume).                                                                                                                         |
-| Build fails on Vercel with missing env                  | Add the missing variable in Project Settings → Environment Variables, then redeploy.                                                                                                                                                                                                  |
-| Invitation link says invalid                            | Links expire after `INVITATION_TTL_HOURS` (default 7 days) and are single-use. Send a fresh one.                                                                                                                                                                                      |
-| **"Not found" page right after signing in (local dev)** | The Turbopack cache went stale and stopped registering `/api/auth/*`, so Google's redirect back hits a 404. Stop the dev server, delete the `.next` folder, and run `npm run dev` again. Verify with `curl http://localhost:3000/api/auth/providers` — it must return JSON, not HTML. |
+| Problem                                           | Fix                                                                                                                                                                                                                                             |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Code email never arrives**                      | Check the spam folder. Confirm all `SMTP_*` values are set in Vercel. Gmail requires an **App Password**, not your normal password. Try sending to a personal address first to isolate whether CUET's mail server is filtering it.              |
+| "Please use your CUET student email address"      | The address doesn't match `CUET_EMAIL_REGEX`. That's the CUET restriction working as intended.                                                                                                                                                  |
+| Every login is rejected, even valid ones          | Check `CUET_EMAIL_REGEX` uses **single** backslashes.                                                                                                                                                                                           |
+| `Can't reach database server`                     | Check `DATABASE_URL`/`DIRECT_URL`, and that the Supabase project isn't paused (free projects pause after inactivity — open the Supabase dashboard to resume).                                                                                   |
+| Build fails on Vercel with missing env            | Add the missing variable in Project Settings → Environment Variables, then redeploy.                                                                                                                                                            |
+| Invitation link says invalid                      | Links expire after `INVITATION_TTL_HOURS` (default 7 days) and are single-use. Send a fresh one.                                                                                                                                                |
+| **"Not found" page after signing in (local dev)** | The Turbopack cache went stale and stopped registering `/api/auth/*`. Stop the dev server, delete the `.next` folder, and run `npm run dev` again. Verify with `curl http://localhost:3000/api/auth/providers` — it must return JSON, not HTML. |
 
 ---
 
@@ -224,4 +206,4 @@ Useful commands:
 - [ ] Production `AUTH_SECRET` and `INVITATION_TOKEN_SECRET` differ from the dev ones
 - [ ] `CUET_EMAIL_REGEX` set correctly in Vercel (single backslashes)
 - [ ] Supabase database password is not shared publicly
-- [ ] Only the intended redirect URIs are listed in Google Credentials
+- [ ] `SMTP_PASSWORD` is an app password, not your main email password

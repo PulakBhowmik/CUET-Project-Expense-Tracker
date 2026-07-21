@@ -15,10 +15,11 @@ export async function createTestUser(
   const suffix = randomUUID().slice(0, 12);
   return prisma.user.create({
     data: {
-      googleSub: `test-sub-${suffix}`,
       email: overrides.email ?? `test-${suffix}@student.cuet.ac.bd`,
       name: overrides.name ?? `Test User ${suffix}`,
       emailVerified: new Date(),
+      // A placeholder hash: these users never sign in through the UI.
+      passwordHash: "scrypt$16384$8$1$00$00",
     },
   });
 }

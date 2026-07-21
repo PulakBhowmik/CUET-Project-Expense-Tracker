@@ -4,15 +4,16 @@ A private web app for CUET classmates to record shared project expenses and
 split them **equally**, then settle up. Only invited CUET students can see a
 project.
 
-Built with Next.js (App Router), TypeScript, PostgreSQL/Prisma, Auth.js with
-Google sign-in, and Tailwind + shadcn/ui. Deploys to Vercel.
+Built with Next.js (App Router), TypeScript, PostgreSQL/Prisma, Auth.js
+(email + password), and Tailwind + shadcn/ui. Deploys to Vercel.
 
 ---
 
 ## What it does
 
-- **Sign in with Google**, restricted to CUET student emails — validated on the
-  server, so it can't be bypassed from the browser.
+- **Sign up with your CUET email.** A 6-digit code is emailed to prove you own
+  the address, then you set a password. Only CUET addresses are accepted, and
+  that rule is enforced on the server so it can't be bypassed.
 - **Create private projects.** The creator is permanent; there's exactly one
   leader at a time, and leadership can be transferred.
 - **Invite classmates** by CUET email using a one-time link. Only the invited
@@ -47,9 +48,10 @@ cp .env.example .env    # then fill in the values
 npm run dev             # http://localhost:3000
 ```
 
-You'll need a free [Supabase](https://supabase.com) database and Google OAuth
-credentials — **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) walks through both
-step by step**, then through deploying to Vercel.
+You'll need a free [Supabase](https://supabase.com) database. Email sending is
+**not** needed locally — sign-in codes are printed to your terminal.
+**[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** walks through both, then through
+deploying to Vercel.
 
 ## Commands
 
@@ -67,8 +69,8 @@ step by step**, then through deploying to Vercel.
 
 ## Testing
 
-`npm test` runs unit tests (money math, equal split, CUET rules, error
-handling) and integration tests that run against a real PostgreSQL database
+`npm test` runs unit tests (money math, equal split, CUET rules, password
+hashing, error handling) and integration tests that run against a real PostgreSQL database
 covering authorization, invitations, expense ownership, and settlement safety —
 including that concurrent settlements can never settle the same expense twice.
 
@@ -95,7 +97,9 @@ For hands-on browser testing, follow **[docs/TESTING.md](docs/TESTING.md)**.
   and write — hidden buttons are never the control.
 - Guessing another project's URL returns **404**, so you can't even learn it
   exists.
-- Invitation tokens are stored **hashed**, expire, and are single-use.
+- Sign-in codes and invitation tokens are stored **hashed**, expire, and are
+  single-use; codes also cap failed attempts and rate-limit sends.
+- Passwords are hashed with **scrypt** and never stored or logged in plain text.
 - Settlement runs in one transaction with a row lock plus an idempotency key,
   so it can't double-settle or duplicate.
 - Raw database errors are never shown to users.

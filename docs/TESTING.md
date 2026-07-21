@@ -11,36 +11,48 @@ bug worth reporting.
 
 ## Before you start
 
-**You'll need two accounts** to test invitations and splitting properly.
-
-The app only accepts emails matching `CUET_EMAIL_REGEX`
-(default `^u2204[0-9]{3}@student\.cuet\.ac\.bd$`). Two options:
-
-- **Best:** use your own CUET account plus a real classmate's.
-- **Easier for solo testing:** temporarily widen the pattern to also allow your
-  Gmail accounts, e.g. in `.env`:
-  ```
-  CUET_EMAIL_REGEX="^(u2204[0-9]{3}@student\.cuet\.ac\.bd|yourname(\+[a-z0-9]+)?@gmail\.com)$"
-  ```
-  Gmail treats `yourname+test1@gmail.com` as the same inbox, so one Gmail
-  account gives you many identities. **Change it back before sharing the app.**
-
 Run locally with `npm run dev` → <http://localhost:3000>, or use your Vercel
 link.
 
+**Sign-in codes go to your terminal in local development.** You don't need an
+email account to test — after clicking "Send me a code", look in the terminal
+window running `npm run dev` for a block like:
+
+```
+──────────── EMAIL (development only) ────────────
+To:      u2204092@student.cuet.ac.bd
+Your verification code is: 552090
+──────────────────────────────────────────────────
+```
+
+**You'll want two accounts** to test invitations and splitting. The app accepts
+any address matching `CUET_EMAIL_REGEX` (default `u2204###@student.cuet.ac.bd`).
+Because codes appear in your terminal locally, you can freely create a second
+test account such as `u2204555@student.cuet.ac.bd` without owning that inbox —
+just remember those are throwaway accounts, and real classmates will need real
+addresses once deployed.
+
 ---
 
-## 1. Login & CUET restriction
+## 1. Sign up, log in, and the CUET restriction
 
-| #   | Step                                                                          | Expected                                                           |
-| --- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 1.1 | Visit `/dashboard` while signed out                                           | Redirected to the login page                                       |
-| 1.2 | Sign in with a **valid CUET** Google account                                  | Lands on the dashboard, your name/email shown                      |
-| 1.3 | Sign out, then sign in with a **non-CUET** Google account (e.g. random Gmail) | Rejected with a "not eligible" message — **no account is created** |
-| 1.4 | Visit `/projects/new` while signed out                                        | Redirected to login                                                |
+| #    | Step                                                                 | Expected                                                                          |
+| ---- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1.1  | Visit `/dashboard` while signed out                                  | Redirected to the login page                                                      |
+| 1.2  | Go to **Create an account**, enter a **non-CUET** email (e.g. Gmail) | Rejected — "Please use your CUET student email address"                           |
+| 1.3  | Enter your **CUET** email → Send me a code                           | Moves to the code step; code appears in your terminal                             |
+| 1.4  | Enter a **wrong** code                                               | "That code is incorrect or has expired" — you stay on the code step               |
+| 1.5  | Enter the **correct** code                                           | Moves to the password step                                                        |
+| 1.6  | Enter two **different** passwords                                    | "The passwords don't match"                                                       |
+| 1.7  | Enter a password shorter than 8 characters                           | Rejected with a length message                                                    |
+| 1.8  | Enter a valid matching password → continue                           | Account created and you land on the **dashboard**, signed in                      |
+| 1.9  | **Sign out**, then sign in with the **wrong** password               | "Incorrect email or password"                                                     |
+| 1.10 | Sign in with the **correct** password                                | Back on the dashboard                                                             |
+| 1.11 | Request 6+ codes in a row for the same address                       | Rate-limited — "Please wait…" / "Too many codes requested"                        |
+| 1.12 | Use **Forgot your password?** to set a new password, then sign in    | New password works; the **old one no longer does**; your projects are still there |
 
-> 1.3 is the important one — it proves outsiders can't get in even though Google
-> authenticated them successfully.
+> 1.2 is the important one — it proves outsiders can't get in at all.
+> 1.12 proves a reset keeps your existing account rather than creating a duplicate.
 
 ---
 
