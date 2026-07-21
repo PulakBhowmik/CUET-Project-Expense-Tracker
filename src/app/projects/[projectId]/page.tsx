@@ -9,6 +9,10 @@ import { PendingInvitationsList } from "@/components/projects/pending-invitation
 import { AddExpenseForm } from "@/components/expenses/add-expense-form";
 import { ExpenseTable } from "@/components/expenses/expense-table";
 import { BalancesPanel } from "@/components/expenses/balances-panel";
+import { listSettlements } from "@/lib/services/settlement";
+import { SettleCycleButton } from "@/components/settlement/settle-cycle-button";
+import { SettlementHistory } from "@/components/settlement/settlement-history";
+import { formatBdt } from "@/lib/money";
 
 // Membership-gated: non-members and nonexistent project ids both resolve to
 // the same 404 (docs/AUTHORIZATION.md §4). Realtime sync + settlement history
@@ -33,13 +37,36 @@ export default async function ProjectPage({
     throw err;
   }
 
-  const [balances, expenses] = await Promise.all([
+  const [balances, expenses, settlements] = await Promise.all([
     getProjectBalances(userId, projectId),
     listExpenses(userId, projectId),
+    listSettlements(userId, projectId),
   ]);
 
   const { project, members, isLeader, isCreator } = detail;
   const leader = members.find((m) => m.id === project.leaderMemberId);
+
+  // Serializable breakdown for the settlement confirmation modal (no bigints
+  // cross the server/client boundary).
+  const hasUnsettled = balances.cycle.cycleTotalPaisa > 0n;
+  const settlementPreview = {
+    cycleTotal: formatBdt(balances.cycle.cycleTotalPaisa),
+    memberCount: balances.cycle.activeMemberCount,
+    equalShare: formatBdt(balances.cycle.baseSharePaisa),
+    rows: balances.cycle.balances.map((b) => ({
+      id: b.userId,
+      name:
+        balances.memberNames[b.userId]?.name ??
+        balances.memberNames[b.userId]?.email ??
+        "Member",
+      paid: formatBdt(b.paidPaisa),
+      share: formatBdt(b.sharePaisa),
+      net:
+        b.netBalancePaisa > 0n
+          ? `+${formatBdt(b.netBalancePaisa)}`
+          : formatBdt(b.netBalancePaisa),
+    })),
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6">
@@ -64,6 +91,27 @@ export default async function ProjectPage({
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Expenses</h2>
         <ExpenseTable projectId={project.id} expenses={expenses} />
+      </section>
+
+      {isLeader && (
+        <section className="space-y-3 rounded-lg border p-4">
+          <h2 className="text-lg font-medium">Settle up</h2>
+          <p className="text-muted-foreground text-sm">
+            {hasUnsettled
+              ? "Lock the current expenses and record who owes what. Settled expenses can no longer be edited."
+              : "There are no unsettled expenses to split right now."}
+          </p>
+          <SettleCycleButton
+            projectId={project.id}
+            hasUnsettled={hasUnsettled}
+            preview={settlementPreview}
+          />
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium">Settlement history</h2>
+        <SettlementHistory settlements={settlements} />
       </section>
 
       <section className="space-y-3">

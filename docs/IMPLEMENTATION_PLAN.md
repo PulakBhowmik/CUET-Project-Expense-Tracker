@@ -186,14 +186,25 @@ expense-tracker/
 - [ ] Reconnection + duplicate-event handling; connection-state indicator
 - **Gate:** integration (adapter contract) + E2E two-context update.
 
-### Phase 8 — Settlement transaction & history
+### Phase 8 — Settlement transaction & history ✅
 
-- [ ] settlement service: atomic tx, row lock, idempotency, snapshot balances
-- [ ] "Mark current expenses as split" + confirmation modal (breakdown)
-- [ ] Settlement history UI; disable button when nothing unsettled
-- [ ] Integration: reset, lifetime preserved, settled lock, duplicate (same key),
-      concurrent (no double settle)
-- **Gate:** settlement integration + concurrency tests pass.
+- [x] Settlement service (`src/lib/services/settlement.ts`): one interactive
+      transaction with `SELECT ... FOR UPDATE` on the project row, immutable
+      Settlement + per-member SettlementBalance snapshot, expenses attached via
+      a `settlementId IS NULL` guarded updateMany, audit log — all committed
+      together (20s timeout so a waiting request queues rather than failing)
+- [x] Idempotency via unique `(projectId, idempotencyKey)`: a replayed key
+      returns the existing settlement instead of creating a duplicate
+- [x] "Mark current expenses as split" + confirmation modal showing total,
+      member count, equal share, and each member's paid/share/result
+- [x] Settlement history UI (permanent snapshots); button disabled when nothing
+      is unsettled
+- [x] Integration tests (`tests/integration/settlement.test.ts`, 9 tests):
+      snapshot correctness (৳100/4), cycle reset (#15), lifetime preserved +
+      history (#16), fresh cycle after settling, idempotency (#18), **concurrent
+      settlement never double-settles (#19)**, nothing-to-settle rejected,
+      member-cannot-settle, deterministic remainder in the snapshot
+- **Gate:** ✅ typecheck/lint clean; **93 tests pass**; zero orphaned rows.
 
 ### Phase 9 — Project settings, leadership & deletion
 
