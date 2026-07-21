@@ -206,13 +206,21 @@ expense-tracker/
       member-cannot-settle, deterministic remainder in the snapshot
 - **Gate:** ✅ typecheck/lint clean; **93 tests pass**; zero orphaned rows.
 
-### Phase 9 — Project settings, leadership & deletion
+### Phase 9 — Project settings, leadership & deletion ✅
 
-- [ ] rename (leader), transfer leadership (creator/leader → active member, audit)
-- [ ] delete project (confirm dialog + type name; leader; audit)
-- [ ] `/projects/[projectId]/settings`
-- [ ] Integration: rename/transfer/delete authz; delete name-match required
-- **Gate:** settings authz tests pass.
+- [x] `renameProject` (leader power, audited)
+- [x] `transferLeadership` (leader **or** creator → any active member; single
+      `leaderMemberId` column guarantees exactly one leader; audited)
+- [x] `deleteProject` (leader power; caller must type the exact project name,
+      re-validated server-side; audited before the cascade removes the row)
+- [x] `/projects/[projectId]/settings` page + Settings link; ordinary members
+      see a "leader only" message instead of controls
+- [x] Integration tests (`tests/integration/project-settings.test.ts`, 14):
+      rename authz (leader/member/non-member), transfer to active member,
+      audit entry written, creator can transfer back after giving it away,
+      member cannot transfer, cannot transfer to non-member or current leader,
+      delete authz (#20), name-mismatch rejected, cascade to expenses
+- **Gate:** ✅ typecheck/lint clean; **107 tests pass**; `next build` (9 routes).
 
 ### Phase 10 — Complete automated test suite
 

@@ -1,10 +1,15 @@
 /**
- * Project service: creation and authorized reads. Mutations that change
- * membership/roles (invite, transfer leadership, rename, delete) land in
- * later phases.
+ * Project service: creation, authorized reads, and the leader/creator
+ * management operations (rename, transfer leadership, delete).
  */
 import { prisma } from "@/lib/db";
-import { loadProjectContext, type ProjectContext } from "@/lib/policy/project-policy";
+import {
+  loadProjectContext,
+  assertLeaderPower,
+  assertCanTransferLeadership,
+  type ProjectContext,
+} from "@/lib/policy/project-policy";
+import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import type { Project } from "@/generated/prisma/client";
 
 export interface CreateProjectInput {
@@ -78,7 +83,9 @@ export interface ProjectMemberSummary {
   email: string;
 }
 
-export type ProjectDetail = ProjectContext & { members: ProjectMemberSummary[] };
+export type ProjectDetail = ProjectContext & {
+  members: ProjectMemberSummary[];
+};
 
 /** Load a single project the user is authorized to view (throws NotFoundError otherwise). */
 export async function getProjectForUser(
@@ -102,4 +109,110 @@ export async function getProjectForUser(
       email: m.user.email,
     })),
   };
+}
+
+/** Rename a project. Leader power (docs/AUTHORIZATION.md). */
+export async function renameProject(
+  actorUserId: string,
+  projectId: string,
+  name: string,
+): Promise<Project> {
+  const ctx = await loadProjectContext(actorUserId, projectId);
+  assertLeaderPower(ctx);
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.project.update({
+      where: { id: projectId },
+      data: { name },
+    });
+    await tx.auditLog.create({
+      data: {
+        projectId,
+        actorUserId,
+        action: "PROJECT_RENAMED",
+        targetType: "Project",
+        targetId: projectId,
+        metadata: { from: ctx.project.name, to: name },
+      },
+    });
+    return updated;
+  });
+}
+
+/**
+ * Transfer leadership to another ACTIVE member. Allowed for the current leader
+ * or the (immutable) creator. Exactly one leader exists at any time because
+ * `Project.leaderMemberId` is a single unique column.
+ */
+export async function transferLeadership(
+  actorUserId: string,
+  projectId: string,
+  targetUserId: string,
+): Promise<Project> {
+  const ctx = await loadProjectContext(actorUserId, projectId);
+  assertCanTransferLeadership(ctx);
+
+  const target = await prisma.projectMember.findUnique({
+    where: { uniq_project_user: { projectId, userId: targetUserId } },
+  });
+  if (!target || target.status !== "ACTIVE") {
+    throw new NotFoundError("That member is not part of this project.");
+  }
+  if (ctx.project.leaderMemberId === target.id) {
+    throw new ConflictError("That member is already the leader.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.project.update({
+      where: { id: projectId },
+      data: { leaderMemberId: target.id },
+    });
+    await tx.auditLog.create({
+      data: {
+        projectId,
+        actorUserId,
+        action: "LEADERSHIP_TRANSFERRED",
+        targetType: "ProjectMember",
+        targetId: target.id,
+        metadata: {
+          fromMemberId: ctx.project.leaderMemberId,
+          toUserId: targetUserId,
+        },
+      },
+    });
+    return updated;
+  });
+}
+
+/**
+ * Delete a project. Leader power, and the caller must type the exact project
+ * name as confirmation (re-validated server-side, never trusted from the UI).
+ * Cascades remove members, invitations, expenses and settlements.
+ */
+export async function deleteProject(
+  actorUserId: string,
+  projectId: string,
+  confirmationName: string,
+): Promise<void> {
+  const ctx = await loadProjectContext(actorUserId, projectId);
+  assertLeaderPower(ctx);
+
+  if (confirmationName.trim() !== ctx.project.name) {
+    throw new ValidationError(
+      "The name you typed doesn't match the project name.",
+    );
+  }
+
+  // Audit first: the project row (and its cascade) disappears on delete, so the
+  // log entry deliberately keeps no FK to it.
+  await prisma.auditLog.create({
+    data: {
+      actorUserId,
+      action: "PROJECT_DELETED",
+      targetType: "Project",
+      targetId: projectId,
+      metadata: { name: ctx.project.name },
+    },
+  });
+  await prisma.project.delete({ where: { id: projectId } });
 }

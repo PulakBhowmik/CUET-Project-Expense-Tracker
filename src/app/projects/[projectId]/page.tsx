@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getProjectForUser } from "@/lib/services/project";
@@ -70,15 +71,25 @@ export default async function ProjectPage({
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {project.name}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Leader: {leader?.name ?? leader?.email ?? "Unknown"}
-          {isLeader && " (you)"}
-          {isCreator && !isLeader && " · you created this project"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {project.name}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Leader: {leader?.name ?? leader?.email ?? "Unknown"}
+            {isLeader && " (you)"}
+            {isCreator && !isLeader && " · you created this project"}
+          </p>
+        </div>
+        {(isLeader || isCreator) && (
+          <Link
+            href={`/projects/${project.id}/settings`}
+            className="text-muted-foreground hover:text-foreground text-sm underline"
+          >
+            Settings
+          </Link>
+        )}
       </div>
 
       <BalancesPanel balances={balances} currentUserId={userId} />
