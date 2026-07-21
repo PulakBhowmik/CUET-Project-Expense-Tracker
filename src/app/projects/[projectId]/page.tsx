@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getProjectForUser } from "@/lib/services/project";
 import { listExpenses } from "@/lib/services/expense";
 import { getProjectBalances } from "@/lib/services/balances";
@@ -24,26 +24,29 @@ export default async function ProjectPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login");
   }
   const userId = session.user.id;
   const { projectId } = await params;
 
-  let detail;
+  // Authorization gate first. Its result is request-cached, so the four reads
+  // below reuse it instead of re-querying — and they run in parallel rather
+  // than in sequence, which matters because every round trip to the database
+  // costs real latency.
+  let detail, balances, expenses, settlements;
   try {
-    detail = await getProjectForUser(userId, projectId);
+    [detail, balances, expenses, settlements] = await Promise.all([
+      getProjectForUser(userId, projectId),
+      getProjectBalances(userId, projectId),
+      listExpenses(userId, projectId),
+      listSettlements(userId, projectId),
+    ]);
   } catch (err) {
     if (err instanceof NotFoundError) notFound();
     throw err;
   }
-
-  const [balances, expenses, settlements] = await Promise.all([
-    getProjectBalances(userId, projectId),
-    listExpenses(userId, projectId),
-    listSettlements(userId, projectId),
-  ]);
 
   const { project, members, isLeader, isCreator } = detail;
   const leader = members.find((m) => m.id === project.leaderMemberId);
@@ -74,6 +77,12 @@ export default async function ProjectPage({
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <Link
+            href="/dashboard"
+            className="text-muted-foreground hover:text-foreground mb-1 inline-block text-sm"
+          >
+            ← All projects
+          </Link>
           <h1 className="text-2xl font-semibold tracking-tight">
             {project.name}
           </h1>

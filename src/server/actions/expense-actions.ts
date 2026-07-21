@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { createExpenseSchema, updateExpenseSchema } from "@/lib/validation/expense";
+import {
+  createExpenseSchema,
+  updateExpenseSchema,
+} from "@/lib/validation/expense";
 import {
   createExpense,
   updateExpense,

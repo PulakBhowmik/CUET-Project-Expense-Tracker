@@ -120,6 +120,15 @@ INVITATION_TOKEN_SECRET="<second random string>"
    `RATE_LIMIT_INVITES_PER_MIN`, `RATE_LIMIT_ACCEPT_PER_MIN`.
 
 4. Click **Deploy** and wait for the build.
+
+   > ⚡ **Speed:** `vercel.json` pins the app to Vercel's **Singapore (`sin1`)**
+   > region so the server sits next to the Supabase database. Every database
+   > query then costs ~1–3 ms instead of the ~60 ms you see when running
+   > locally from Bangladesh. **If you ever move the Supabase project to a
+   > different region, change `regions` in `vercel.json` to match** — a
+   > mismatch here is the single biggest thing that will make the site feel
+   > slow.
+
 5. Vercel gives you a URL like `https://cuet-project-expense-tracker.vercel.app`.
    **This is your shareable link.**
 6. **Go back to <https://console.cloud.google.com/auth/clients> → your OAuth

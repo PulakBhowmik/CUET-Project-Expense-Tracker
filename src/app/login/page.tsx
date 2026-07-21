@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth, signIn } from "@/lib/auth";
+import { signIn } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import type { SignInRejectionReason } from "@/lib/cuet";
 
 // Keyed by SignInRejectionReason so TypeScript flags a missing entry if a new
 // rejection reason is ever added to src/lib/cuet.ts.
 const CUET_REASON_MESSAGES: Record<SignInRejectionReason, string> = {
-  missing_sub:
-    "Google did not return an account identifier. Please try again.",
+  missing_sub: "Google did not return an account identifier. Please try again.",
   missing_email: "Your Google account did not provide an email address.",
   email_unverified:
     "Your Google email address is not verified. Please verify it with Google, then try again.",
@@ -38,7 +38,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; reason?: string }>;
 }) {
-  const session = await auth();
+  const session = await getSession();
   if (session?.user) {
     redirect("/dashboard");
   }
@@ -52,8 +52,7 @@ export default async function LoginPage({
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
           <p className="text-muted-foreground text-sm">
-            CUET Expense Splitter is only open to CUET student Google
-            accounts.
+            CUET Expense Splitter is only open to CUET student Google accounts.
           </p>
         </div>
 

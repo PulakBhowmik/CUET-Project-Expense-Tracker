@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth, signOut } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { listProjectsForUser, type ProjectSummary } from "@/lib/services/project";
+import { getSession } from "@/lib/session";
+import {
+  listProjectsForUser,
+  type ProjectSummary,
+} from "@/lib/services/project";
 import { listInvitationsForUser } from "@/lib/services/invitation";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id || !session.user.email) {
     redirect("/login");
   }
@@ -20,28 +22,11 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            Signed in as {session.user.email ?? session.user.name}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild>
-            <Link href="/projects/new">New project</Link>
-          </Button>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
-          >
-            <Button type="submit" variant="outline">
-              Sign out
-            </Button>
-          </form>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground text-sm">
+          Signed in as {session.user.email ?? session.user.name}
+        </p>
       </div>
 
       {invitations.length > 0 && (

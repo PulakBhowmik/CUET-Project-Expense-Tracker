@@ -4,9 +4,14 @@
  * `loadProjectContext` first — never trust a client-supplied projectId or role
  * claim directly.
  */
+import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { NotFoundError, AuthorizationError, ConflictError } from "@/lib/errors";
-import type { Project, ProjectMember, Expense } from "@/generated/prisma/client";
+import type {
+  Project,
+  ProjectMember,
+  Expense,
+} from "@/generated/prisma/client";
 
 export interface ProjectContext {
   userId: string;
@@ -24,30 +29,36 @@ export interface ProjectContext {
  * indistinguishable to callers so a project's mere existence is never leaked
  * to non-members (IDOR hardening; docs/AUTHORIZATION.md §4).
  */
-export async function loadProjectContext(
-  userId: string,
-  projectId: string,
-): Promise<ProjectContext> {
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project) {
-    throw new NotFoundError("Project not found.");
-  }
+export const loadProjectContext = cache(
+  async (userId: string, projectId: string): Promise<ProjectContext> => {
+    // Request-cached (React `cache`): a single page render calls this from
+    // several services, and without caching each one repeated the same
+    // authorization queries against a remote database.
+    //
+    // Also folded two round trips into one by fetching the project together
+    // with just THIS user's membership row.
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { members: { where: { userId }, take: 1 } },
+    });
+    if (!project) {
+      throw new NotFoundError("Project not found.");
+    }
 
-  const membership = await prisma.projectMember.findUnique({
-    where: { uniq_project_user: { projectId, userId } },
-  });
-  if (!membership || membership.status !== "ACTIVE") {
-    throw new NotFoundError("Project not found.");
-  }
+    const membership = project.members[0];
+    if (!membership || membership.status !== "ACTIVE") {
+      throw new NotFoundError("Project not found.");
+    }
 
-  return {
-    userId,
-    project,
-    membership,
-    isCreator: project.creatorUserId === userId,
-    isLeader: project.leaderMemberId === membership.id,
-  };
-}
+    return {
+      userId,
+      project,
+      membership,
+      isCreator: project.creatorUserId === userId,
+      isLeader: project.leaderMemberId === membership.id,
+    };
+  },
+);
 
 export function assertMember(ctx: ProjectContext): void {
   if (!ctx.membership || ctx.membership.status !== "ACTIVE") {
@@ -77,7 +88,10 @@ export function assertCanTransferLeadership(ctx: ProjectContext): void {
 }
 
 /** True only for the payer of an UNSETTLED expense. */
-export function canModifyExpense(ctx: ProjectContext, expense: Expense): boolean {
+export function canModifyExpense(
+  ctx: ProjectContext,
+  expense: Expense,
+): boolean {
   return expense.payerUserId === ctx.userId && expense.settlementId === null;
 }
 
@@ -99,3 +113,16 @@ export function assertCanModifyExpense(
     throw new AuthorizationError("You can only change your own expenses.");
   }
 }
+
+/**
+ * Active members of a project, with display fields. Request-cached so the
+ * several places that need the member list on one page render share a single
+ * query instead of repeating it.
+ */
+export const getActiveMembers = cache(async (projectId: string) => {
+  return prisma.projectMember.findMany({
+    where: { projectId, status: "ACTIVE" },
+    include: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { joinedAt: "asc" },
+  });
+});

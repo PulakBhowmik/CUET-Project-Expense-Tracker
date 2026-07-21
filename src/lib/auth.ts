@@ -28,7 +28,11 @@ import type { GoogleProfile } from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { getEnv } from "@/lib/env";
-import { evaluateCuetSignIn, normalizeEmail, type GoogleProfileLike } from "@/lib/cuet";
+import {
+  evaluateCuetSignIn,
+  normalizeEmail,
+  type GoogleProfileLike,
+} from "@/lib/cuet";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const env = getEnv();

@@ -5,6 +5,7 @@
 import { prisma } from "@/lib/db";
 import {
   loadProjectContext,
+  getActiveMembers,
   assertLeaderPower,
   assertCanTransferLeadership,
   type ProjectContext,
@@ -93,12 +94,7 @@ export async function getProjectForUser(
   projectId: string,
 ): Promise<ProjectDetail> {
   const ctx = await loadProjectContext(userId, projectId);
-
-  const members = await prisma.projectMember.findMany({
-    where: { projectId, status: "ACTIVE" },
-    include: { user: { select: { id: true, name: true, email: true } } },
-    orderBy: { joinedAt: "asc" },
-  });
+  const members = await getActiveMembers(projectId);
 
   return {
     ...ctx,

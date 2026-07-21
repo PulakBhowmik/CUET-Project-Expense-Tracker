@@ -67,11 +67,7 @@ export function evaluateCuetSignIn(
   }
 
   // Enforce hosted domain only when configured AND present on the profile.
-  if (
-    config.hostedDomain &&
-    profile.hd &&
-    profile.hd !== config.hostedDomain
-  ) {
+  if (config.hostedDomain && profile.hd && profile.hd !== config.hostedDomain) {
     return { ok: false, reason: "hosted_domain_mismatch" };
   }
 

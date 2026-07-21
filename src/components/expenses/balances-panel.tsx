@@ -23,7 +23,10 @@ export function BalancesPanel({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Current-cycle total" value={formatBdt(cycle.cycleTotalPaisa)} />
+        <Stat
+          label="Current-cycle total"
+          value={formatBdt(cycle.cycleTotalPaisa)}
+        />
         <Stat
           label="Your equal share"
           value={mine ? formatBdt(mine.sharePaisa) : formatBdt(0n)}

@@ -72,8 +72,8 @@ export function SettleCycleButton({
         <DialogHeader>
           <DialogTitle>Settle the current cycle?</DialogTitle>
           <DialogDescription>
-            This locks all current expenses and records a snapshot. It can&apos;t
-            be undone.
+            This locks all current expenses and records a snapshot. It
+            can&apos;t be undone.
           </DialogDescription>
         </DialogHeader>
 

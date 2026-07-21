@@ -23,7 +23,9 @@ export async function settleAction(
     idempotencyKey.length < 8 ||
     idempotencyKey.length > 100
   ) {
-    return { error: "Invalid settlement request. Please refresh and try again." };
+    return {
+      error: "Invalid settlement request. Please refresh and try again.",
+    };
   }
 
   try {

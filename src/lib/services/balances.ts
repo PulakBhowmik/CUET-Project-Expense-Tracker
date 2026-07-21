@@ -6,7 +6,11 @@
  *   - cycle: equal-split balances over the CURRENT (unsettled) cycle only.
  */
 import { prisma } from "@/lib/db";
-import { loadProjectContext, assertMember } from "@/lib/policy/project-policy";
+import {
+  loadProjectContext,
+  getActiveMembers,
+  assertMember,
+} from "@/lib/policy/project-policy";
 import { computeCycleBalances, type CycleBalances } from "@/lib/calc";
 
 export interface ProjectBalances {
@@ -24,10 +28,7 @@ export async function getProjectBalances(
   assertMember(ctx);
 
   const [activeMembers, unsettledByPayer, lifetimeAgg] = await Promise.all([
-    prisma.projectMember.findMany({
-      where: { projectId, status: "ACTIVE" },
-      include: { user: { select: { id: true, name: true, email: true } } },
-    }),
+    getActiveMembers(projectId),
     prisma.expense.groupBy({
       by: ["payerUserId"],
       where: { projectId, settlementId: null },

@@ -5,7 +5,10 @@
  * afterward; only its hash lives in the database (docs/SECURITY.md §5).
  */
 import { prisma } from "@/lib/db";
-import { loadProjectContext, assertCanInvite } from "@/lib/policy/project-policy";
+import {
+  loadProjectContext,
+  assertCanInvite,
+} from "@/lib/policy/project-policy";
 import { isCuetEmail, normalizeEmail } from "@/lib/cuet";
 import { getEnv } from "@/lib/env";
 import { getTokenHasher } from "@/lib/token-hasher";
@@ -55,7 +58,9 @@ export async function createInvitation(
   const email = normalizeEmail(rawEmail);
   const env = getEnv();
   if (!isCuetEmail(email, env.CUET_EMAIL_REGEX)) {
-    throw new ValidationError("Only CUET student email addresses can be invited.");
+    throw new ValidationError(
+      "Only CUET student email addresses can be invited.",
+    );
   }
 
   const existingMember = await prisma.projectMember.findFirst({

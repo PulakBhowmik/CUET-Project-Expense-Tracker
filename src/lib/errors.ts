@@ -42,7 +42,10 @@ export class AuthenticationError extends AppError {
 }
 
 export class AuthorizationError extends AppError {
-  constructor(message = "You do not have permission to do that.", cause?: unknown) {
+  constructor(
+    message = "You do not have permission to do that.",
+    cause?: unknown,
+  ) {
     super("FORBIDDEN", 403, message, { cause });
   }
 }
@@ -61,13 +64,19 @@ export class ValidationError extends AppError {
 }
 
 export class ConflictError extends AppError {
-  constructor(message = "That action conflicts with the current state.", cause?: unknown) {
+  constructor(
+    message = "That action conflicts with the current state.",
+    cause?: unknown,
+  ) {
     super("CONFLICT", 409, message, { cause });
   }
 }
 
 export class RateLimitError extends AppError {
-  constructor(message = "Too many requests. Please slow down.", cause?: unknown) {
+  constructor(
+    message = "Too many requests. Please slow down.",
+    cause?: unknown,
+  ) {
     super("RATE_LIMITED", 429, message, { cause });
   }
 }
@@ -91,7 +100,11 @@ const GENERIC_INTERNAL: SafeErrorShape = {
  */
 export function toSafeError(err: unknown): SafeErrorShape {
   if (err instanceof AppError) {
-    return { httpStatus: err.httpStatus, code: err.code, message: err.safeMessage };
+    return {
+      httpStatus: err.httpStatus,
+      code: err.code,
+      message: err.safeMessage,
+    };
   }
   return GENERIC_INTERNAL;
 }

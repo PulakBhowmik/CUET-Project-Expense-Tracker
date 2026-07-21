@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { getProjectForUser } from "@/lib/services/project";
 import { NotFoundError } from "@/lib/errors";
 import {
@@ -14,7 +14,7 @@ export default async function ProjectSettingsPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
   const { projectId } = await params;
@@ -88,10 +88,7 @@ export default async function ProjectSettingsPage({
       {isLeader && (
         <section className="border-destructive/40 space-y-4 rounded-lg border p-4">
           <h2 className="text-destructive text-lg font-medium">Danger zone</h2>
-          <DeleteProjectForm
-            projectId={projectId}
-            projectName={project.name}
-          />
+          <DeleteProjectForm projectId={projectId} projectName={project.name} />
         </section>
       )}
     </main>

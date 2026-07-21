@@ -80,7 +80,11 @@ export function InviteMemberForm({ projectId }: { projectId: string }) {
           aria-describedby={state.error ? "invite-error" : undefined}
         />
         {state.error && (
-          <p id="invite-error" role="alert" className="text-destructive text-sm">
+          <p
+            id="invite-error"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {state.error}
           </p>
         )}

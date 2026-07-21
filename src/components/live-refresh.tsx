@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
  * Polling pauses while the tab is hidden and resumes (with an immediate
  * refresh) when it becomes visible again, which also covers reconnection.
  */
-export function LiveRefresh({ intervalMs = 10_000 }: { intervalMs?: number }) {
+export function LiveRefresh({ intervalMs = 15_000 }: { intervalMs?: number }) {
   const router = useRouter();
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [online, setOnline] = useState(true);
