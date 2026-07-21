@@ -13,32 +13,60 @@ and **Google Cloud** (for "Sign in with Google"), plus **Vercel** (hosting).
 The app only lets CUET students in, and it does that through Google. You need to
 register the app with Google once.
 
-1. Go to <https://console.cloud.google.com/>.
-2. Top-left project dropdown → **New Project** → name it `CUET Expense Tracker`
-   → **Create**. Wait a few seconds, then make sure it's selected.
-3. In the search bar type **OAuth consent screen** and open it.
-   - User type: **External** → **Create**.
-   - App name: `CUET Expense Tracker`, and pick your email for both support and
-     developer contact fields. **Save and continue**.
-   - Scopes: just **Save and continue**.
-   - Test users: **Add users** → add the Gmail/CUET addresses that will test the
-     app (while the app is in "Testing" mode only these can sign in).
-   - **Save and continue** → **Back to dashboard**.
-4. Search for **Credentials** → **+ Create Credentials** → **OAuth client ID**.
-   - Application type: **Web application**
-   - Name: `CUET Expense Tracker Web`
-   - Under **Authorized redirect URIs**, click **+ Add URI** and add this one for
-     local development:
-     ```
-     http://localhost:3000/api/auth/callback/google
-     ```
-     (You'll add the real Vercel URL in Part 3, after you know it.)
-   - **Create**.
-5. Copy the **Client ID** and **Client secret**. Put them in your local `.env`:
-   ```
-   GOOGLE_CLIENT_ID="....apps.googleusercontent.com"
-   GOOGLE_CLIENT_SECRET="...."
-   ```
+> Google renamed this area: the old **"OAuth consent screen"** page is now
+> **"Google Auth Platform"**. The direct links below are the quickest route —
+> menu names move around, URLs don't.
+
+**1. Create the project**
+
+Go to <https://console.cloud.google.com/> → top-left project dropdown →
+**New Project** → name it `CUET Expense Tracker` → **Create**. Wait a few
+seconds, then make sure it's the selected project.
+
+**2. Register the app (the old "consent screen")**
+
+Open <https://console.cloud.google.com/auth/overview> → click **GET STARTED**,
+then fill the short wizard:
+
+| Wizard step             | What to enter                                                     |
+| ----------------------- | ----------------------------------------------------------------- |
+| **App Information**     | App name `CUET Expense Tracker`; your email as User support email |
+| **Audience**            | **External**                                                      |
+| **Contact Information** | your email address                                                |
+| **Finish**              | tick the policy checkbox → **Create**                             |
+
+**3. Add test users**
+
+Open <https://console.cloud.google.com/auth/audience> → under **Test users**
+click **+ Add users** → add every email you'll sign in with → **Save**.
+
+> While the app is in **Testing** mode, only these addresses can sign in — even
+> valid CUET ones. Skipping this causes an "app has not completed verification"
+> or `access_denied` error.
+
+**4. Create the OAuth client**
+
+Open <https://console.cloud.google.com/auth/clients> → **+ CREATE CLIENT**:
+
+- **Application type**: `Web application`
+- **Name**: `CUET Expense Tracker Web`
+- **Authorized redirect URIs** → **+ ADD URI** → paste exactly:
+  ```
+  http://localhost:3000/api/auth/callback/google
+  ```
+  (You'll add the Vercel URL in Part 3, once you know it.)
+- **CREATE**
+
+**5. Copy the credentials into `.env`**
+
+```
+GOOGLE_CLIENT_ID="....apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="...."
+```
+
+> ⚠️ The **client secret is shown only once**, right after you create the
+> client. Copy it immediately. If you lose it, delete the client and make a new
+> one.
 
 > **Note on the CUET restriction:** Google will happily let any Google account
 > through — the app itself rejects anyone whose verified email doesn't match
