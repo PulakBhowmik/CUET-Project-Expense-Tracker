@@ -14,6 +14,7 @@ import { listSettlements } from "@/lib/services/settlement";
 import { SettleCycleButton } from "@/components/settlement/settle-cycle-button";
 import { SettlementHistory } from "@/components/settlement/settlement-history";
 import { formatBdt } from "@/lib/money";
+import { LiveRefresh } from "@/components/live-refresh";
 
 // Membership-gated: non-members and nonexistent project ids both resolve to
 // the same 404 (docs/AUTHORIZATION.md §4). Realtime sync + settlement history
@@ -82,14 +83,17 @@ export default async function ProjectPage({
             {isCreator && !isLeader && " · you created this project"}
           </p>
         </div>
-        {(isLeader || isCreator) && (
-          <Link
-            href={`/projects/${project.id}/settings`}
-            className="text-muted-foreground hover:text-foreground text-sm underline"
-          >
-            Settings
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          <LiveRefresh />
+          {(isLeader || isCreator) && (
+            <Link
+              href={`/projects/${project.id}/settings`}
+              className="text-muted-foreground hover:text-foreground text-sm underline"
+            >
+              Settings
+            </Link>
+          )}
+        </div>
       </div>
 
       <BalancesPanel balances={balances} currentUserId={userId} />
